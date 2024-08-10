@@ -1,4 +1,6 @@
 #include "chip8.hpp"
+#include <iostream>
+#include <ostream>
 
 chip8::chip8()
 {
@@ -42,6 +44,16 @@ chip8::chip8()
     };
 }
 
+//initialize the chip8
+void chip8::chip8_init()
+{
+    //load the fontset into the memory
+    for(int i = 0; i < 80; i++)
+    {
+        memory[i+80] = fontset[i];
+    }
+}
+
 //fetch instruction
 uint16_t chip8::fetch_instruction()
 {
@@ -49,6 +61,40 @@ uint16_t chip8::fetch_instruction()
     pc_counter += 2;
     return current_instruction;
 }
+
+//load the rom to memory
+bool chip8::load_rom(const std::string rom_path)
+{
+    std::ifstream rom_file(rom_path, std::ios::binary | std::ios::ate);
+
+    if(rom_file.is_open())
+    {
+        std::streampos size = rom_file.tellg();
+        rom_file.seekg(0, std::ios::beg);
+
+        //check if the rom file is too large
+        if(size > 4096 - 512)
+        {
+            std::cerr << "Rom file too large" << std::endl;
+            return false;
+        }
+
+        std::array<uint8_t, 4096 - 512> buffer;
+        if(!rom_file.read(reinterpret_cast<char*>(buffer.data()), size))
+        {
+            std::cerr << "Error reading rom file" << std::endl;
+            return false;
+        }
+
+        std::copy(buffer.begin(), buffer.end(), memory.begin() + 512);
+        return true;
+
+    }else{
+        std::cerr << "Error opening rom file" << std::endl;
+        return false;
+    }
+}
+
 
 
 //decode and excute instruction
@@ -81,6 +127,7 @@ void chip8::decode_excute(uint16_t instruction)
                     std::cerr << "0NNN command not implemented" << std::endl;
                     break;
             }
+            break;
         }
 
         //jump to address NNN
@@ -222,6 +269,7 @@ void chip8::decode_excute(uint16_t instruction)
                     break;
                 }
             }
+            break;
         }
 
         //9XY0
@@ -288,19 +336,148 @@ void chip8::decode_excute(uint16_t instruction)
         }
 
         //EX9E, EXA1
+        //EX9E ,skip next instruction if key with the value of VX is pressed
+        //EXA1 ,skip next instruction if key with the value of VX is not pressed
+        case(0xE):
+        {
+            switch(instruction & 0x00FF)
+            {
+                //EX9E
+                case(0x9E):
+                {
+                    if(keypad.at(V.at((instruction & 0x0F00) >> 8)) != 0)
+                    {
+                        pc_counter += 2;
+                    }
+                    break;
+                }
 
+                //EXA1
+                case(0xA1):
+                {
+                    if(keypad.at(V.at((instruction & 0x0F00) >> 8)) == 0)
+                    {
+                        pc_counter += 2;
+                    }
+                    break;
+                }
+            }
+            break;
+        }
 
+        //FX07, FX0A, FX15, FX18, FX1E, FX29, FX33, FX55, FX65
+        case(0xF):
+        {
+            switch(instruction && 0x00FF)
+            {
+                //Sets VX to the value of the delay timer
+                case(0x07):
+                {
+                    V.at((instruction & 0x0F00) >> 8) = delay_timer;
+                    break;
+                }
 
+                //A key press is awaited, and then stored in VX
+                //decrement the program counter by 2 to wait for the key press
+                case(0x0A):
+                {
+                    pc_counter -= 2;
+                    for(const auto& key : keypad)
+                    {
+                        if(key != 0)
+                        {
+                            V.at((instruction & 0x0F00) >> 8) = key;
+                            pc_counter += 2;
+                            break;
+                        }
+                    }
+                }
 
+                //Sets the delay timer to VX
+                case(0x15):
+                {
+                    delay_timer = V.at((instruction & 0x0F00) >> 8);
+                    break;
+                }
 
+                //Sets the sound timer to VX
+                case(0x18):
+                {
+                    sound_timer = V.at((instruction & 0x0F00) >> 8);
+                    break;
+                }
 
+                //Adds VX to I. Vf is not affected
+                case(0x1E):
+                {
+                    I += V.at((instruction & 0x0F00) >> 8);
+                    break;
+                }
 
+                //Sets I to the location of the sprite for the character in VX
+                case(0x29):
+                {
+                    I = V.at((instruction & 0x0F00) >> 8) * 0x5 + 80;
+                    break;
+                }
 
+                //Stores the binary-coded decimal representation of VX in I, I+1, and I+2
+                case(0x33):
+                {
+                    memory.at(I) = V.at((instruction & 0x0F00) >> 8) / 100;
+                    memory.at(I + 1) = (V.at((instruction & 0x0F00) >> 8) / 10) % 10;
+                    memory.at(I + 2) = V.at((instruction & 0x0F00) >> 8) % 10;
+                    break;
+                }
 
+                //stores V0 to VX in memory starting at address I
+                case(0x55):
+                {
+                    for(int i = 0; i <= ((instruction & 0x0F00) >> 8); i++)
+                    {
+                        memory.at(I + i) = V.at(i);
+                    }
+                    break;
+                }
+
+                //stores memory starting at address I into V0 to VX
+                case(0x65):
+                {
+                    for(int i = 0; i <= ((instruction & 0x0F00) >> 8); i++)
+                    {
+                        V.at(i) = memory.at(I + i);
+                    }
+                    break;
+                }
+                
+                default:
+                {
+                    std::cerr << "Instruction not implemented" << std::endl;
+                    break;
+                }
+            }
+            break;
+        }
+
+        default:
+        {
+            std::cerr << "Instruction not implemented" << std::endl;
+            break;
+        }
     }
-    
 }
 
+//get the screen pixels
+uint8_t chip8::get_screent_pixels(int x, int y)
+{
+    return display.at(x + y * 64);
+}
+
+//set the keypad
+void chip8::set_keypad(uint8_t key, uint8_t value)
+{
+    keypad.at(key) = value;
+}
 
 //helper function to get the first four bits of the instruction
 uint8_t chip8::helper_functions(uint16_t instruction)
