@@ -255,9 +255,40 @@ void chip8::decode_excute(uint16_t instruction)
         //set VX = random byte AND NN
         case(0xC):
         {
-            V.at((instruction & 0x0F00) >> 8) = (rand() % 0xFF) & (instruction & 0x00FF);
+            V.at((instruction & 0x0F00) >> 8) = (rand() % 0x100) & (instruction & 0x00FF);
             break;
         }
+
+        //DXYN
+        //display n-byte sprite starting at memory location I at (VX, VY), vf = collision
+        case(0xD):
+        {
+            uint8_t x = V.at((instruction & 0x0F00) >> 8);
+            uint8_t y = V.at((instruction & 0x00F0) >> 4);
+            uint8_t height = instruction & 0x000F;
+            for(int yline = 0; yline < height; yline++)
+            {
+                uint8_t pixel = memory.at(I + yline);
+                for(int xline = 0; xline < 8; xline++)
+                {
+                    //check if the current pixel is set to 1
+                    //if yes, then check if the display pixel is set to 1
+                    if((pixel & (0x80 >> xline)) != 0)
+                    {
+                        if(display.at((x + xline + ((y + yline) * 64))) == 1)
+                        {
+                            V.at(0xF) = 1;
+                        }
+                        // xor the display pixel with 1(flip the bit)
+                        display.at(x + xline + ((y + yline) * 64)) ^= 1;
+                    }
+                }
+            }
+            break;  
+        }
+
+        //EX9E, EXA1
+
 
 
 
