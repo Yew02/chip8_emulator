@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
         }
 
         //emulate one cycle
-        
+        chip8_emu.chip8_cycle();
 
         for (int y = 0; y < SCREEN_HEIGHT; ++y)
         {

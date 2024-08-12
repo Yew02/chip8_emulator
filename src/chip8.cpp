@@ -368,7 +368,7 @@ void chip8::decode_excute(uint16_t instruction)
         //FX07, FX0A, FX15, FX18, FX1E, FX29, FX33, FX55, FX65
         case(0xF):
         {
-            switch(instruction && 0x00FF)
+            switch(instruction & 0x00FF)
             {
                 //Sets VX to the value of the delay timer
                 case(0x07):
@@ -472,6 +472,31 @@ uint8_t chip8::get_screent_pixels(int x, int y)
 {
     return display.at(x + y * 64);
 }
+
+//chip8 cycle
+void chip8::chip8_cycle()
+{
+    try
+    {
+        uint16_t instruction = fetch_instruction();
+        decode_excute(instruction);
+
+        //decrement the delay timer and sound timer
+        if(delay_timer > 0)
+        {
+            delay_timer--;
+        }
+
+        if(sound_timer > 0)
+        {
+            sound_timer--;
+        }
+    }catch(const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
+}
+
 
 //set the keypad
 void chip8::set_keypad(uint8_t key, uint8_t value)

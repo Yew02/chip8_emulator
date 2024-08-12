@@ -45,6 +45,8 @@ class chip8
         
         void set_keypad(uint8_t key, uint8_t value); // set the keypad
 
+        void chip8_cycle(); // chip8 cycle
+
         uint8_t helper_functions(uint16_t instruction); // get the first four bits of the instruction 
 
 };
