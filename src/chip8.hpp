@@ -30,6 +30,8 @@ class chip8
         //fontset
         std::array<uint8_t, 80> fontset;
 
+        bool draw_flag; // draw flag
+
     public:
         chip8(); // constructor
 
@@ -44,6 +46,10 @@ class chip8
         uint8_t get_screent_pixels(int x, int y); // get the screen pixels
         
         void set_keypad(uint8_t key, uint8_t value); // set the keypad
+
+        bool get_draw_flag(); // get the draw flag
+
+        void clear_draw_flag(); // clear the draw flag
 
         void chip8_cycle(); // chip8 cycle
 

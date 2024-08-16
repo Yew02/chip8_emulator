@@ -15,7 +15,7 @@ target_include_directories(chip8_emulator PRIVATE "C:\\msys64\\mingw64\\include"
 
 add_library(chip8 ${CMAKE_SOURCE_DIR}//src//chip8.cpp)
 
-target_link_libraries(chip8_emulator PRIVATE chip8 )
+target_link_libraries(chip8_emulator PRIVATE chip8 SDL2::SDL2main SDL2::SDL2)
 # if(WIN32)
 
 # endif(WIN32)
