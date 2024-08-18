@@ -246,7 +246,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //VX = VX - VY, vf = not borrow(1 if VX > VY else 0)
                 case(0x5):
                 {
-                    V.at(0xF) = (V.at((instruction & 0x0F00) >> 8) > (0xFF - V.at((instruction & 0x00F0) >> 4)) ? 1 : 0);
+                    V.at(0xF) = (V.at((instruction & 0x0F00) >> 8) > ( V.at((instruction & 0x00F0) >> 4)) ? 1 : 0);
                     V.at((instruction & 0x0F00) >> 8) -= V.at((instruction & 0x00F0) >> 4);
                     break;
                 }
