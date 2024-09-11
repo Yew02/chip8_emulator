@@ -14,7 +14,7 @@ const int PIXEL_SIZE = 10; // size of each pixel
 int main(int argc, char* argv[])
 {
     //read the rom file
-    if (argc < 1)
+    if (argc <= 1)
     {
         std::cerr << "no specific rom file(use -h to get help)" << std::endl;
         exit(1);
@@ -87,25 +87,39 @@ int main(int argc, char* argv[])
 
     while(!quit)
     {
+        //emulate one cycle
+
         while(SDL_PollEvent(&e) != 0)
-        {
+        {   
+            std::cout << "event get " << e.type << std::endl;
             if(e.type == SDL_QUIT)
             {
                 quit = true;
             }else if(e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
             {
+                //std::cout << e.key.keysym.scancode << " key pressed" << std::endl;
                 bool pressed = (e.type == SDL_KEYDOWN);
                 auto key = keyMap.find(e.key.keysym.scancode);
-
+                std::cout << "key get pressed" << std::endl;
                 if(key != keyMap.end())
                 {
+                    //std::cout << key->first << " | " << key->second << std::endl;
                     chip8_emu.set_keypad(key->second, pressed);
                 }
+            }else if(e.type == SDL_TEXTEDITING || e.type == SDL_TEXTINPUT)
+            {
+                break;
             }
         }
-
-        //emulate one cycle
         chip8_emu.chip8_cycle();
+        if(chip8_emu.get_draw_flag())
+        {
+            chip8_emu.clear_draw_flag();
+        }
+        else
+        {
+            continue;
+        }
 
         for (int y = 0; y < SCREEN_HEIGHT; ++y)
         {
@@ -126,7 +140,10 @@ int main(int argc, char* argv[])
         }
 
         //update the screen
-        SDL_RenderPresent(renderer);   
+        SDL_RenderPresent(renderer);
+
+        //sleep for 1/500 seconds
+        SDL_Delay(1000 / 60);   
     }
 
     //clear the resources

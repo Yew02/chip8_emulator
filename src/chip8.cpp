@@ -19,6 +19,7 @@ chip8::chip8()
     // 0 represents black , 255 represents white
     display.fill(0);
 
+    bool draw_flag = false;
 
     //initialize the keypad
     keypad.fill(0);
@@ -114,6 +115,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //clear the display
                 case 0x00E0:
                     display.fill(0);
+                    draw_flag = true;
                     break;
 
                 //return from a subroutine
@@ -175,6 +177,7 @@ void chip8::decode_excute(uint16_t instruction)
             {
                 pc_counter += 2;
             }
+            break;
         }
 
         //6XNN
@@ -211,6 +214,7 @@ void chip8::decode_excute(uint16_t instruction)
                 case(0x1):
                 {
                     V.at((instruction & 0x0F00) >> 8) |= V.at((instruction & 0x00F0) >> 4);
+                    V.at(0xF) = 0;
                     break;
                 }
 
@@ -218,6 +222,7 @@ void chip8::decode_excute(uint16_t instruction)
                 case(0x2):
                 {
                     V.at((instruction & 0x0F00) >> 8) &= V.at((instruction & 0x00F0) >> 4);
+                    V.at(0xF) = 0;
                     break;
                 }
 
@@ -225,6 +230,7 @@ void chip8::decode_excute(uint16_t instruction)
                 case(0x3):
                 {
                     V.at((instruction & 0x0F00) >> 8) ^= V.at((instruction & 0x00F0) >> 4);
+                    V.at(0xF) = 0;
                     break;
                 }
 
@@ -232,7 +238,7 @@ void chip8::decode_excute(uint16_t instruction)
                 case(0x4):
                 {
                     uint16_t sum = V.at((instruction & 0x0F00) >> 8) + V.at((instruction & 0x00F0) >> 4);
-                    V.at(0xF) = sum > 0xFF ? 1 : 0;
+                    V.at(0xF) = (sum > 0xFF ? 1 : 0);
                     V.at((instruction & 0x0F00) >> 8) = sum & 0xFF;
                     break;
                 }
@@ -240,7 +246,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //VX = VX - VY, vf = not borrow(1 if VX > VY else 0)
                 case(0x5):
                 {
-                    V.at(0xF) = V.at((instruction & 0x0F00) >> 8) > V.at((instruction & 0x00F0) >> 4) ? 1 : 0;
+                    V.at(0xF) = (V.at((instruction & 0x0F00) >> 8) >= ( V.at((instruction & 0x00F0) >> 4)) ? 1 : 0);
                     V.at((instruction & 0x0F00) >> 8) -= V.at((instruction & 0x00F0) >> 4);
                     break;
                 }
@@ -256,7 +262,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //VX = VY - VX, vf = not borrow(1 if VY > VX else 0)
                 case(0x7):
                 {
-                    V.at(0xF) = V.at((instruction & 0x00F0) >> 4) > V.at((instruction & 0x0F00) >> 8) ? 1 : 0;
+                    V.at(0xF) = (V.at((instruction & 0x00F0) >> 4) >= V.at((instruction & 0x0F00) >> 8) ? 1 : 0);
                     V.at((instruction & 0x0F00) >> 8) = V.at((instruction & 0x00F0) >> 4) - V.at((instruction & 0x0F00) >> 8);
                     break;
                 }
@@ -266,6 +272,12 @@ void chip8::decode_excute(uint16_t instruction)
                 {
                     V.at(0xF) = V.at((instruction & 0x0F00) >> 8) >> 7;
                     V.at((instruction & 0x0F00) >> 8) <<= 1;
+                    break;  
+                }
+                
+                default:
+                {
+                    std::cerr << "Instruction not implemented" << std::endl;
                     break;
                 }
             }
@@ -303,7 +315,7 @@ void chip8::decode_excute(uint16_t instruction)
         //set VX = random byte AND NN
         case(0xC):
         {
-            V.at((instruction & 0x0F00) >> 8) = (rand() % 0x100) & (instruction & 0x00FF);
+            V.at((instruction & 0x0F00) >> 8) = (rand() % 256) & (instruction & 0x00FF);
             break;
         }
 
@@ -314,6 +326,7 @@ void chip8::decode_excute(uint16_t instruction)
             uint8_t x = V.at((instruction & 0x0F00) >> 8);
             uint8_t y = V.at((instruction & 0x00F0) >> 4);
             uint8_t height = instruction & 0x000F;
+            V[0xF] = 0;
             for(int yline = 0; yline < height; yline++)
             {
                 uint8_t pixel = memory.at(I + yline);
@@ -323,14 +336,12 @@ void chip8::decode_excute(uint16_t instruction)
                     //if yes, then check if the display pixel is set to 1
                     if((pixel & (0x80 >> xline)) != 0)
                     {
-                        if(display.at((x + xline + ((y + yline) * 64))) == 1)
-                        {
-                            V.at(0xF) = 1;
-                        }
+                        V.at(0xF) |= display.at(((x + xline + ((y + yline) * 64)) % 2048)) & 1;
                         // xor the display pixel with 1(flip the bit)
-                        display.at(x + xline + ((y + yline) * 64)) ^= 1;
+                        display.at(((x + xline + ((y + yline) * 64)) % 2048)) ^= 1;
                     }
                 }
+                draw_flag = true;
             }
             break;  
         }
@@ -345,7 +356,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //EX9E
                 case(0x9E):
                 {
-                    if(keypad.at(V.at((instruction & 0x0F00) >> 8)) != 0)
+                    if(keypad.at(V.at((instruction & 0x0F00) >> 8)))
                     {
                         pc_counter += 2;
                     }
@@ -355,7 +366,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //EXA1
                 case(0xA1):
                 {
-                    if(keypad.at(V.at((instruction & 0x0F00) >> 8)) == 0)
+                    if(! keypad.at(V.at((instruction & 0x0F00) >> 8)))
                     {
                         pc_counter += 2;
                     }
@@ -382,15 +393,18 @@ void chip8::decode_excute(uint16_t instruction)
                 case(0x0A):
                 {
                     pc_counter -= 2;
+                    uint8_t count = 0;
                     for(const auto& key : keypad)
                     {
                         if(key != 0)
                         {
-                            V.at((instruction & 0x0F00) >> 8) = key;
+                            V.at((instruction & 0x0F00) >> 8) = count;
                             pc_counter += 2;
                             break;
                         }
+                        count++;
                     }
+                    break;
                 }
 
                 //Sets the delay timer to VX
@@ -407,9 +421,11 @@ void chip8::decode_excute(uint16_t instruction)
                     break;
                 }
 
-                //Adds VX to I. Vf is not affected
+                //Adds VX to I.
                 case(0x1E):
                 {
+                    int sum = I + V.at((instruction & 0x0F00) >> 8);
+                    V.at(0xF) = (sum > 0xFFF ? 1 : 0);
                     I += V.at((instruction & 0x0F00) >> 8);
                     break;
                 }
@@ -435,7 +451,7 @@ void chip8::decode_excute(uint16_t instruction)
                 {
                     for(int i = 0; i <= ((instruction & 0x0F00) >> 8); i++)
                     {
-                        memory.at(I + i) = V.at(i);
+                        memory.at(I++) = V.at(i);
                     }
                     break;
                 }
@@ -445,7 +461,7 @@ void chip8::decode_excute(uint16_t instruction)
                 {
                     for(int i = 0; i <= ((instruction & 0x0F00) >> 8); i++)
                     {
-                        V.at(i) = memory.at(I + i);
+                        V.at(i) = memory.at(I++);
                     }
                     break;
                 }
@@ -479,6 +495,7 @@ void chip8::chip8_cycle()
     try
     {
         uint16_t instruction = fetch_instruction();
+        if(instruction == 0x1394)std::cout << std::hex << instruction << std::endl;
         decode_excute(instruction);
 
         //decrement the delay timer and sound timer
@@ -502,6 +519,16 @@ void chip8::chip8_cycle()
 void chip8::set_keypad(uint8_t key, uint8_t value)
 {
     keypad.at(key) = value;
+}
+
+bool chip8::get_draw_flag()
+{
+    return draw_flag;
+}
+
+void chip8::clear_draw_flag()
+{
+    draw_flag = false;
 }
 
 //helper function to get the first four bits of the instruction
