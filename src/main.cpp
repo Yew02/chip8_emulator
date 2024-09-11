@@ -88,11 +88,10 @@ int main(int argc, char* argv[])
     while(!quit)
     {
         //emulate one cycle
-        chip8_emu.chip8_cycle();
 
         while(SDL_PollEvent(&e) != 0)
-        {
-
+        {   
+            std::cout << "event get " << e.type << std::endl;
             if(e.type == SDL_QUIT)
             {
                 quit = true;
@@ -101,14 +100,18 @@ int main(int argc, char* argv[])
                 //std::cout << e.key.keysym.scancode << " key pressed" << std::endl;
                 bool pressed = (e.type == SDL_KEYDOWN);
                 auto key = keyMap.find(e.key.keysym.scancode);
-
+                std::cout << "key get pressed" << std::endl;
                 if(key != keyMap.end())
                 {
                     //std::cout << key->first << " | " << key->second << std::endl;
                     chip8_emu.set_keypad(key->second, pressed);
                 }
+            }else if(e.type == SDL_TEXTEDITING || e.type == SDL_TEXTINPUT)
+            {
+                break;
             }
         }
+        chip8_emu.chip8_cycle();
         if(chip8_emu.get_draw_flag())
         {
             chip8_emu.clear_draw_flag();
