@@ -246,7 +246,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //VX = VX - VY, vf = not borrow(1 if VX > VY else 0)
                 case(0x5):
                 {
-                    V.at(0xF) = (V.at((instruction & 0x0F00) >> 8) > ( V.at((instruction & 0x00F0) >> 4)) ? 1 : 0);
+                    V.at(0xF) = (V.at((instruction & 0x0F00) >> 8) >= ( V.at((instruction & 0x00F0) >> 4)) ? 1 : 0);
                     V.at((instruction & 0x0F00) >> 8) -= V.at((instruction & 0x00F0) >> 4);
                     break;
                 }
@@ -262,7 +262,7 @@ void chip8::decode_excute(uint16_t instruction)
                 //VX = VY - VX, vf = not borrow(1 if VY > VX else 0)
                 case(0x7):
                 {
-                    V.at(0xF) = (V.at((instruction & 0x00F0) >> 4) > V.at((instruction & 0x0F00) >> 8) ? 1 : 0);
+                    V.at(0xF) = (V.at((instruction & 0x00F0) >> 4) >= V.at((instruction & 0x0F00) >> 8) ? 1 : 0);
                     V.at((instruction & 0x0F00) >> 8) = V.at((instruction & 0x00F0) >> 4) - V.at((instruction & 0x0F00) >> 8);
                     break;
                 }
@@ -272,7 +272,7 @@ void chip8::decode_excute(uint16_t instruction)
                 {
                     V.at(0xF) = V.at((instruction & 0x0F00) >> 8) >> 7;
                     V.at((instruction & 0x0F00) >> 8) <<= 1;
-                    break;
+                    break;  
                 }
                 
                 default:
@@ -368,7 +368,6 @@ void chip8::decode_excute(uint16_t instruction)
                 {
                     if(! keypad.at(V.at((instruction & 0x0F00) >> 8)))
                     {
-                        std::cout << "keypad value: " << keypad.at(V.at((instruction & 0x0F00) >> 8)) << std::endl;
                         pc_counter += 2;
                     }
                     break;
@@ -394,14 +393,16 @@ void chip8::decode_excute(uint16_t instruction)
                 case(0x0A):
                 {
                     pc_counter -= 2;
+                    uint8_t count = 0;
                     for(const auto& key : keypad)
                     {
                         if(key != 0)
                         {
-                            V.at((instruction & 0x0F00) >> 8) = key;
+                            V.at((instruction & 0x0F00) >> 8) = count;
                             pc_counter += 2;
                             break;
                         }
+                        count++;
                     }
                     break;
                 }
@@ -420,10 +421,11 @@ void chip8::decode_excute(uint16_t instruction)
                     break;
                 }
 
-                //Adds VX to I. Vf is not affected
+                //Adds VX to I.
                 case(0x1E):
                 {
-                    V.at(0xF) = ((I + V.at((instruction & 0x0F00) >> 8)) > 0xFFF ? 1 : 0);
+                    int sum = I + V.at((instruction & 0x0F00) >> 8);
+                    V.at(0xF) = (sum > 0xFFF ? 1 : 0);
                     I += V.at((instruction & 0x0F00) >> 8);
                     break;
                 }
